@@ -41,6 +41,9 @@ public class SeckillActivityService {
     }
 
     public Order createOrder(long seckillActivityId, long userId) throws Exception {
+        /*
+         *  1. create order
+         */
         SeckillActivity activity = seckillActivityDao.querySeckillActivityById(seckillActivityId);
         Order order = new Order();
 
@@ -50,8 +53,17 @@ public class SeckillActivityService {
         order.setUserId(userId);
         order.setOrderAmount(activity.getSeckillPrice().longValue());
 
-        // 发送创建订单消息
+        /*
+         * 2. 发送创建订单消息
+         */
         rocketMQService.sendMessage("seckill_order", JSON.toJSONString(order));
+
+        /*
+         * 3. 发送订单付款状态校验信息
+         * 开源RocketMQ 支持延迟消息，但是不支持秒级精度
+         * messageDelayLevel = 1s 5s 10s 30s 1m 2m 3m 4m 5m 6m 7m 8m 9m 10m 20m 30m 1h 2h
+         */
+        rocketMQService.sendDelayMessage("pay_check", JSON.toJSONString(order), 3);
 
         return order;
     }
