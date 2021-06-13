@@ -8,11 +8,13 @@ import com.jiuzhang.seckill.db.po.SeckillActivity;
 import com.jiuzhang.seckill.mq.RocketMQService;
 import com.jiuzhang.seckill.util.RedisService;
 import com.jiuzhang.seckill.util.SnowFlake;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import java.util.Date;
 
+@Slf4j
 @Service
 public class SeckillActivityService {
 
@@ -68,17 +70,36 @@ public class SeckillActivityService {
         return order;
     }
 
-    public void payOrderProcess(String orderNo) {
+    public void payOrderProcess(String orderNo) throws Exception {
+        log.info("完成支付订单    订单号：" + orderNo);
         Order order = orderDao.queryOrder(orderNo);
-        boolean deductStockResult = seckillActivityDao.deductStock(order.getSeckillActivityId());
 
-        if (deductStockResult) {
-            order.setPayTime(new Date());
-            // 0  没有可用库存，无效订单
-            // 1 以创建等待支付
-            // 2 完成支付
-            order.setOrderStatus(2);
-            orderDao.updateOrder(order);
+        /*
+         *  1. 判断订单是否存在
+         *  2. 判断订单状态是否为未支付
+         */
+        if (order == null) {
+            log.error("订单号对应订单不存在：" + orderNo);
+            return;
         }
+        else if(order.getOrderStatus() != 1) {
+            log.error("订单状态无效: " + orderNo);
+            return;
+        }
+
+        /*
+         *  2. 订单支付完成
+         */
+        order.setPayTime(new Date());
+        // 0  没有可用库存，无效订单
+        // 1 以创建等待支付
+        // 2 完成支付
+        order.setOrderStatus(2);
+        orderDao.updateOrder(order);
+
+        /*
+         *  3. 发送订单付款成功消息
+         */
+        rocketMQService.sendMessage("pay_done", JSON.toJSONString(order));
     }
 }

@@ -7,6 +7,7 @@ import com.jiuzhang.seckill.db.po.Order;
 import com.jiuzhang.seckill.db.po.SeckillActivity;
 import com.jiuzhang.seckill.db.po.SeckillCommodity;
 import com.jiuzhang.seckill.services.SeckillActivityService;
+import com.jiuzhang.seckill.util.RedisService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
@@ -31,6 +32,9 @@ public class SeckillActivityController {
 
     @Resource
     private OrderDao orderDao;
+
+    @Resource
+    private RedisService redisService;
 
     @Resource
     private SeckillActivityService seckillActivityService;
@@ -106,11 +110,30 @@ public class SeckillActivityController {
         ModelAndView modelAndView = new ModelAndView();
 
         try {
+
+            /*
+             * check if user is in the limit list
+             */
+            if (redisService.isInLimitMember(seckillActivityId, userId)) {
+                // 提示用户已经在限购名单中，返回结果
+                modelAndView.addObject("resultInfo", "对不起，您已经在限购名单中");
+                modelAndView.setViewName("seckill_result");
+                return modelAndView;
+            }
+
+            /*
+             * 确认是否能够进行秒杀
+             */
             stockValidateResult = seckillActivityService.seckillStockValidator(seckillActivityId);
             if (stockValidateResult) {
                 Order order = seckillActivityService.createOrder(seckillActivityId, userId);
                 modelAndView.addObject("resultInfo", "秒杀成功，订单创建中，订单 ID：" + order.getOrderNo());
                 modelAndView.addObject("orderNo", order.getOrderNo());
+
+                // 添加用户到已购名单中
+                log.info("ready to add limit members...");
+                redisService.addLimitMember(seckillActivityId, userId);
+
             } else {
                 modelAndView.addObject("resultInfo", "对不起，商品库存不足");
             }
