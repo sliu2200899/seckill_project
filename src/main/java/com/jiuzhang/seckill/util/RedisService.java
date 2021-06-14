@@ -29,6 +29,18 @@ public class RedisService {
     }
 
     /**
+     * 设置值
+     *
+     * @param key
+     * @param value
+     */
+    public void setValue(String key, String value) {
+        Jedis jedisClient = jedisPool.getResource();
+        jedisClient.set(key, value);
+        jedisClient.close();
+    }
+
+    /**
      * 获取值
      *
      * @param key

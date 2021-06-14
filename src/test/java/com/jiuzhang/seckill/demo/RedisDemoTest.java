@@ -1,5 +1,6 @@
 package com.jiuzhang.seckill.demo;
 
+import com.jiuzhang.seckill.services.SeckillActivityService;
 import com.jiuzhang.seckill.util.RedisService;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -10,6 +11,9 @@ import javax.annotation.Resource;
 public class RedisDemoTest {
     @Resource
     private RedisService redisService;
+
+    @Resource
+    SeckillActivityService seckillActivityService;
 
     @Test
     public void setTest() {
@@ -40,5 +44,10 @@ public class RedisDemoTest {
         System.out.println(result);
         String stock = redisService.getValue("stock:31");
         System.out.println("stock:" + stock);
+    }
+
+    @Test
+    public void pushSeckillInfoToRedisTest() {
+        seckillActivityService.pushSeckillInfoToRedis(19);
     }
 }
